@@ -2,7 +2,9 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include "lexer_raw.cpp"
 using namespace std; 
+
 
 
 string load_file(const string& path) {
@@ -12,8 +14,11 @@ string load_file(const string& path) {
 }
 
 int main(int argc, char* argv[]) {
-    std::string filepath = (argc > 1) ? argv[1] : "sample C code/sample.c";
-    std::string content = load_file(filepath);
-
+    string filepath = (argc > 1) ? argv[1] : "sample_C_code/sample2.c";
+    string content = load_file(filepath);
+    lexerRaw lex;
+    cout<<" started tokenzing ";
+    auto Tokens=lex.tokenizer(content);
+    lex.printTokens(Tokens);
     return 0;
 }

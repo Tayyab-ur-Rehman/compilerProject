@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_BUFFER_SIZE 1024
+
 
 void testFunction(int x, float y);
 int sum(int a, int b);

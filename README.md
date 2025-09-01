@@ -1,8 +1,14 @@
 # compilerProject
 
 ## run using 
+for lexer raw:
 g++ main.cpp -o main
 ./main
+
+for regex based lexer 
+g++ lexer_regex.c -o lexer
+./lexer /path/to/C_code
+
 
 
 Members :/

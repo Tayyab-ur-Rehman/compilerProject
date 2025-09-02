@@ -509,23 +509,24 @@ public:
                 int startCol = col;
                 i++;
                 col++;
-                // If next char is alpha or underscore, it's an invalid identifier
-                if (i < code.size() && (isalpha(code[i]) || code[i] == '_'))
-                {
-                    cout << "Error: Identifier cannot start with digit at line " << line << ", column " << startCol << endl;
-                    while (i < code.size() && isalnum(code[i]))
-                    {
-                        i++;
-                        col++;
-                    }
-                    continue;
-                }
                 // Otherwise, it's a number literal (handle float too)
                 bool isFloat = false;
                 while (i < code.size() && isdigit(code[i]))
                 {
-                    i++;
+                    i++;    
                     col++;
+                }
+                if(!isdigit(code[i])&& code[i]!='.' && !isspace(code[i]) && code[i]!=';')
+                {
+                    while (i < code.size() && !(isspace(code[i])||code[i]==';'))
+                    {
+                        i++;
+                        col++;
+                    }
+                    string lexeme = code.substr(start, i - start);
+                    tokens.push_back({T_INVALID, lexeme, line, startCol});
+                    cout<<"Error: Invalid numeric literal at line "<<line<<", column "<<startCol<<lexeme<<endl;
+                    break;
                 }
                 if (i < code.size() && code[i] == '.')
                 {
@@ -536,6 +537,18 @@ public:
                     {
                         i++;
                         col++;
+                    }
+                    if(!isdigit(code[i]) && !isspace(code[i]) && code[i]!=';')
+                    {
+                        while (i < code.size() && !(isspace(code[i])||code[i]==';'))
+                        {
+                            i++;
+                            col++;
+                        }
+                        string lexeme = code.substr(start, i - start);
+                        tokens.push_back({T_INVALID, lexeme, line, startCol});
+                        cout<<"Error: Invalid numeric literal at line "<<line<<", column "<<startCol<<lexeme<<endl;
+                        break;
                     }
                 }
                 string lexeme = code.substr(start, i - start);
@@ -549,14 +562,23 @@ public:
                 int startCol = col;
                 i++;
                 col++;
+                bool foundEndQuote = false;
                 while (i < code.size() && code[i] != '"')
                 {
+                    
                     if ((code[i] == '\\' || code[i] == '\"') && i + 1 < code.size())
                         i++; // skip escaped char and \" to be considerd end of char*
+                    
                     i++;
                     col++;
                 }
-                i++;
+                if (i < code.size() && code[i] == '"')
+                    foundEndQuote = true;
+                if (!foundEndQuote)
+                {
+                    cout << "Error: Unterminated string literal at line " << line << ", column " << startCol << endl;
+                    break;
+                }
                 col++;
                 tokens.push_back({T_STRINGLIT, code.substr(start, i - start), line, startCol});
                 continue;
@@ -569,13 +591,30 @@ public:
                 int startCol = col;
                 i++;
                 col++;
-                while (i < code.size() && code[i] != '\'')
+                bool foundEndQuote = false;
+                if(i < code.size() && code[i] == '\\') // escape sequence
                 {
-                    if (code[i] == '\\' && i + 1 < code.size())
+                    i++;
+                    col++;
+                    if(i < code.size()) // skip escaped char
+                    {
                         i++;
+                        col++;
+                    }
+                }
+                else if(i < code.size()) // normal char
+                {
                     i++;
                     col++;
                 }
+                if (i < code.size() && code[i] == '\'')
+                    foundEndQuote = true;
+                if (!foundEndQuote)
+                {
+                    cout << "Error: Unterminated char literal at line " << line << ", column " << startCol << endl;
+                    break;
+                }
+                
                 i++;
                 col++; // skip closing quote
                 tokens.push_back({T_CHARLIT, code.substr(start, i - start), line, startCol});

@@ -13,10 +13,11 @@ int sum(int a, int b)
 int main() {
    
     int my_bool = 40;
-    int assss 'a
+    int assss = 'a';
     float x = 10;
     float y = 20.5;
     char ch = 'A';  
-    const char* str = "Hello, World! \nThis is}
+    const char* str = "Hello, World! \nThis is}";
+}
 
 

@@ -580,6 +580,7 @@ public:
                     break;
                 }
                 col++;
+                i++;
                 tokens.push_back({T_STRINGLIT, code.substr(start, i - start), line, startCol});
                 continue;
             }

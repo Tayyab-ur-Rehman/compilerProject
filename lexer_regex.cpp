@@ -410,24 +410,24 @@ string readFile(const string& filename) {
     return content;
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " <filename.c>" << endl;
-        return 1;
-    }
+// int main(int argc, char* argv[]) {
+//     if (argc != 2) {
+//         cerr << "Usage: " << argv[0] << " <filename.c>" << endl;
+//         return 1;
+//     }
     
-    try {
-        string input = readFile(argv[1]);
-        vector<Token> tokens = tokenize(input);
+//     try {
+//         string input = readFile(argv[1]);
+//         vector<Token> tokens = tokenize(input);
         
-        for (const auto& token : tokens) {
-            cout << tokenToString(token) << ", ";
-        }
-        cout << endl;
-    } catch (const exception& e) {
-        cerr << "Error: " << e.what() << endl;
-        return 1;
-    }
+//         for (const auto& token : tokens) {
+//             cout << tokenToString(token) << ", ";
+//         }
+//         cout << endl;
+//     } catch (const exception& e) {
+//         cerr << "Error: " << e.what() << endl;
+//         return 1;
+//     }
     
-    return 0;
-}
+//     return 0;
+// }

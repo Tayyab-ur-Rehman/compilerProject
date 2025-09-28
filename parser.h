@@ -214,5 +214,112 @@ private:
         return expr;
     }
 
-    // shafay task .......
+        Expression* parse_logical_or() {
+        Expression* expr = parse_logical_and();
+        while (match(T_OP_OR)) {
+            string op = previous().lexeme;
+            Expression* right = parse_logical_and();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+
+    Expression* parse_logical_and() {
+        Expression* expr = parse_equality();
+        while (match(T_OP_AND)) {
+            string op = previous().lexeme;
+            Expression* right = parse_equality();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+
+    Expression* parse_equality() {
+        Expression* expr = parse_comparison();
+        while (check(T_OP_EQ) || check(T_OP_NEQ)) {
+            advance();
+            string op = previous().lexeme;
+            Expression* right = parse_comparison();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+    
+    Expression* parse_comparison() {
+        Expression* expr = parse_term();
+        while (check(T_OP_LT) || check(T_OP_GT) || check(T_OP_LE) || check(T_OP_GE)) {
+            advance();
+            string op = previous().lexeme;
+            Expression* right = parse_term();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+
+    Expression* parse_term() {
+        Expression* expr = parse_factor();
+        while (check(T_OP_PLUS) || check(T_OP_MINUS)) {
+            advance();
+            string op = previous().lexeme;
+            Expression* right = parse_factor();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+    
+    Expression* parse_factor() {
+        Expression* expr = parse_unary();
+        while (check(T_OP_MUL) || check(T_OP_DIV) || check(T_OP_MOD)) {
+            advance();
+            string op = previous().lexeme;
+            Expression* right = parse_unary();
+            expr = new BinaryOperation(expr, op, right);
+        }
+        return expr;
+    }
+
+    Expression* parse_unary() {
+        if (check(T_OP_NOT) || check(T_OP_MINUS) || check(T_OP_INC) || check(T_OP_DEC)) {
+            advance();
+            string op = previous().lexeme;
+            Expression* right = parse_unary();
+            return new UnaryOp(op, right);
+        }
+        return parse_call();
+    }
+    
+    Expression* parse_call() {
+        Expression* expr = parse_primary();
+        if (match(T_PARENL)) {
+            Identifier* id = (Identifier*)(expr);
+            if(id) {
+                string callee_name = id->name;
+                delete id; 
+                vector<Expression*> args;
+                if (!check(T_PARENR)) {
+                    do { args.push_back(parse_expression()); } while (match(T_COMMA));
+                }
+                consume(T_PARENR, ParseErrorType::FailedToFindToken, "Expected ')' after arguments.");
+                return new FunctionCall(callee_name, args);
+            }
+        }
+        return expr;
+    }
+
+    Expression* parse_primary() {
+        if (match(T_INTLIT)) return new NumberLiteral(previous().lexeme);
+        if (match(T_FLOATLIT)) return new NumberLiteral(previous().lexeme);
+        if (match(T_STRINGLIT)) return new StringLiteral(previous().lexeme);
+        if (match(T_KW_TRUE)) return new BoolLiteral(true);
+        if (match(T_KW_FALSE)) return new BoolLiteral(false);
+        if (match(T_IDENTIFIER)) return new Identifier(previous().lexeme);
+
+        if (match(T_PARENL)) {
+            Expression* expr = parse_expression();
+            consume(T_PARENR, ParseErrorType::FailedToFindToken, "Expected ')' after expression.");
+            return expr;
+        }
+
+        throw ParseError(ParseErrorType::ExpectedExpression, "Expected an expression at line " + to_string(peek().line));
+    }
 };

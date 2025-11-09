@@ -6,7 +6,7 @@
 #include "ast.h"
 #include "parser.h"
 #include "lexer_regex.cpp" 
-
+#include "scope_analyzer.h"
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
@@ -28,6 +28,11 @@ int main(int argc, char* argv[]) {
         Parser parser(tokens);
         ast_root = parser.parse_program();
         cout << "Parsing complete. AST generated." << endl;
+        
+        ScopeAnalyzer analyzer;
+        analyzer.analyze(ast_root);
+        cout << "Scope analysis complete. No redefinition or undeclared symbol errors found." << endl;
+
         cout << "\nAbstract Syntax Tree Output " << endl;
         if (ast_root) {
             ast_root->print(0);
@@ -35,11 +40,19 @@ int main(int argc, char* argv[]) {
             cout << "AST is null. This should not happen for valid programs." << endl;
         }
 
-    } catch (const ParseError& e) {
+    }
+    catch (const ParseError& e) {
         cerr << "\n PARSE ERROR " << endl;
         cerr << "Error: " << e.what() << endl;
         return 1;
-    } catch (const std::exception& e) {
+    } 
+    catch (const ScopeError& e) {
+        cerr << "\n--- SCOPE ERROR ---" << endl;
+        cerr << "Error: " << e.what() << endl;
+        delete ast_root;
+        return 1;
+    } 
+    catch (const std::exception& e) {
         cerr << "\n GENERAL ERROR " << endl;
         cerr << "An unexpected error occurred: " << e.what() << endl;
         return 1;

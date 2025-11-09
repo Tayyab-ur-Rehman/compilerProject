@@ -195,9 +195,11 @@ vector<Token> tokenize(const string& input) {
         { regex(R"(\s+)"), T_INVALID }, // Will be skipped
         { regex(R"(//.*)"), T_INVALID }, // Will be skipped
         { regex(R"(/\*[\s\S]*?\*/)"), T_INVALID }, // Will be skipped
-        
-        { regex(R"(#include\b)"), T_KW_INCLUDE },
-        { regex(R"(#define\b)"), T_KW_DEFINE },
+
+        { regex(R"(#.*)"), T_INVALID }, // Find '#' and consume the rest of the line. Mark as INVALID to skip.
+
+        // { regex(R"(#include\b)"), T_KW_INCLUDE },
+        // { regex(R"(#define\b)"), T_KW_DEFINE },
         // Preprocessor directives
         { regex(R"(##)"), T_PP_HASHHASH },
         { regex(R"(#)"), T_PP_HASH },
@@ -252,7 +254,7 @@ vector<Token> tokenize(const string& input) {
         { regex(R"(\^)"), T_OP_XOR },
         { regex(R"(~)"), T_OP_BITWISENOT },
         
-        // Literals
+        // Literals and Identifiers (Identifier must be last)
         { regex(R"(\b\d+\.\d*([eE][-+]?\d+)?\b)"), T_FLOATLIT },
         { regex(R"(\b\d+\b)"), T_INTLIT },
         { regex(R"([a-zA-Z_][a-zA-Z0-9_]*)"), T_IDENTIFIER }

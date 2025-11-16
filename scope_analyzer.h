@@ -32,6 +32,8 @@ struct Symbol {
     string type_name;
     SymbolKind kind;
     int definition_line;
+     
+    vector<Parameter> params; 
 
     Symbol(string n, string t, SymbolKind k, int line) 
         : name(n), type_name(t), kind(k), definition_line(line) {}
@@ -40,23 +42,23 @@ struct Symbol {
 struct Scope {
     map<string, Symbol*> symbols;
     Scope* parent;
+    map<const void*, Scope*> children_scopes; 
 
     Scope(Scope* p) : parent(p) {}
 
     ~Scope() {
         for (auto& it : symbols) delete it.second;
+        for (auto& it : children_scopes) delete it.second;
     }
 };
 
 class ScopeAnalyzer {
 public:
+    Scope* global_scope;
+
     ScopeAnalyzer() {
         global_scope = new Scope(NULL);
         current_scope = global_scope;
-    }
-
-    ~ScopeAnalyzer() {
-        delete global_scope;
     }
 
     void analyze(Program* program_node) {
@@ -64,17 +66,16 @@ public:
     }
 
 private:
-    Scope* global_scope;
     Scope* current_scope;
 
-    void enter_scope() {
-        current_scope = new Scope(current_scope);
+    void enter_scope(const void* node_key) {
+        Scope* new_scope = new Scope(current_scope);
+        current_scope->children_scopes[node_key] = new_scope; 
+        current_scope = new_scope;
     }
 
     void exit_scope() {
-        Scope* parent = current_scope->parent;
-        delete current_scope;
-        current_scope = parent;
+        current_scope = current_scope->parent;
     }
 
     void add_symbol(Symbol* symbol) {
@@ -107,18 +108,20 @@ private:
         }
         return NULL;
     }
-
+    
     void visit(Program* node) {
+        for (auto f : node->functions){
+            Symbol* func_sym = new Symbol(f->name, f->returnType, FUNCTION, f->line);
+            func_sym->params = f->params;
+            add_symbol(func_sym);
+        }
         for (auto g : node->globals) visit(g);
-        for (auto f : node->functions)
-            add_symbol(new Symbol(f->name, f->returnType, FUNCTION, f->line));
         for (auto f : node->functions) visit(f);
     }
 
     void visit(FunctionDeclaration* node) {
-        enter_scope();
-        for (size_t i = 0; i < node->params.size(); ++i) {
-            const Parameter& param = node->params[i];
+        enter_scope(node);
+        for (const auto& param : node->params) {
             add_symbol(new Symbol(param.name, param.type, VARIABLE, param.line));
         }
         visit(node->body);
@@ -126,14 +129,13 @@ private:
     }
 
     void visit(BlockStatement* node) {
-        enter_scope();
+        enter_scope(node);
         for (auto s : node->statements) visit(s);
         exit_scope();
     }
 
     void visit(Statement* node) {
         if (!node) return;
-
         if (auto p = dynamic_cast<BlockStatement*>(node)) visit(p);
         else if (auto p = dynamic_cast<VariableDeclarationStatement*>(node)) visit(p);
         else if (auto p = dynamic_cast<ExpressionStatement*>(node)) visit(p);
@@ -164,7 +166,7 @@ private:
     }
     
     void visit(ForStatement* node) {
-        enter_scope();
+        enter_scope(node);
         if(node->initializer) visit(node->initializer);
         if(node->condition) visit(node->condition);
         if(node->increment) visit(node->increment);

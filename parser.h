@@ -72,6 +72,7 @@ private:
 
     bool is_type_specifier() {
         TokenType t = peek().type;
+        if (t == T_IDENTIFIER && peek().lexeme == "string") return true; 
         return t==T_KW_VOID || t==T_KW_CHAR || t==T_KW_INT || t==T_KW_FLOAT || t==T_KW_DOUBLE || t==T_KW_BOOL || t==T_KW_AUTO;
     }
 
@@ -205,7 +206,7 @@ private:
         if (match(T_OP_ASSIGN)) {
             int line = previous().line; 
             Expression* value = parse_assignment();
-            // Use dynamic_cast for safe downcasting
+            
             Identifier* id = dynamic_cast<Identifier*>(expr);
             if (id) {
                 return new Assignment(id, value, line);

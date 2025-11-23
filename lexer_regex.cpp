@@ -44,7 +44,6 @@ const map<string, TokenType> keywordMap = {
     {"else", T_KW_ELSE},
     {"case", T_KW_CASE},
     {"enum", T_KW_ENUM},
-    {"auto", T_KW_AUTO},
     {"long", T_KW_LONG},
     {"void", T_KW_VOID},
     {"char", T_KW_CHAR},
@@ -60,7 +59,6 @@ string tokenTypeToString(TokenType type) {
     static map<TokenType, string> typeToString = {
         {T_KW_ALIGNAS, "KW_ALIGNAS"},
         {T_KW_ALIGNOF, "KW_ALIGNOF"},
-        {T_KW_AUTO, "KW_AUTO"},
         {T_KW_BOOL, "KW_BOOL"},
         {T_KW_BREAK, "KW_BREAK"},
         {T_KW_CASE, "KW_CASE"},

@@ -111,6 +111,10 @@ private:
     
     void visit(Program* node) {
         for (auto f : node->functions){
+            f->resolved_return_type = f->returnType;
+            for (auto& param : f->params) {
+                param.resolved_type = param.type;
+            }
             Symbol* func_sym = new Symbol(f->name, f->returnType, FUNCTION, f->line);
             func_sym->params = f->params;
             add_symbol(func_sym);
@@ -122,7 +126,7 @@ private:
     void visit(FunctionDeclaration* node) {
         enter_scope(node);
         for (const auto& param : node->params) {
-            add_symbol(new Symbol(param.name, param.type, VARIABLE, param.line));
+            add_symbol(new Symbol(param.name, param.resolved_type, VARIABLE, param.line));
         }
         visit(node->body);
         exit_scope();
@@ -147,7 +151,8 @@ private:
 
     void visit(VariableDeclarationStatement* node) {
         if (node->initializer) visit(node->initializer);
-        add_symbol(new Symbol(node->name, node->type, VARIABLE, node->line));
+        node->resolved_type = node->type;
+        add_symbol(new Symbol(node->name, node->resolved_type, VARIABLE, node->line));
     }
 
     void visit(ExpressionStatement* node) {
@@ -194,6 +199,7 @@ private:
     void visit(Assignment* node) {
         visit(node->identifier);
         visit(node->value);
+        node->inferred_type = node->identifier->inferred_type;
     }
 
     void visit(Identifier* node) {
@@ -202,6 +208,7 @@ private:
             string message = "Undeclared variable '" + node->name + "' used on line " + to_string(node->line) + ".";
             throw ScopeError(ScopeErrorType::UndeclaredVariableAccessed, message);
         }
+        node->inferred_type = sym->type_name;
     }
 
     void visit(FunctionCall* node) {
@@ -210,6 +217,7 @@ private:
             string message = "Call to undefined function '" + node->callee + "' on line " + to_string(node->line) + ".";
             throw ScopeError(ScopeErrorType::UndefinedFunctionCalled, message);
         }
+        node->inferred_type = sym->type_name;
         for(auto& arg : node->arguments) visit(arg);
     }
 };

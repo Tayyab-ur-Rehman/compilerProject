@@ -25,6 +25,13 @@ int main(int argc, char* argv[]) {
         cout << "\n1. lexical analysis" << endl;
         string source_code = readFile(filename);
         vector<Token> tokens = tokenize(source_code);
+        for (const auto& token : tokens) {
+            if (token.type == T_INVALID) continue; 
+            else { //print
+                cout << "   Token(" << token.lexeme << ", Type: " << tokenTypeToString(token.type) 
+                     << ", Line: " << token.line << ", Column: " << token.column << ")" << endl;
+            }
+        }
         cout << "   Lexing complete. " << tokens.size() << " tokens found." << endl;
         
         cout << "\n2 Syntactic Analysis (Parsing)" << endl;

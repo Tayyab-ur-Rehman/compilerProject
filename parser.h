@@ -72,8 +72,9 @@ private:
 
     bool is_type_specifier() {
         TokenType t = peek().type;
-        if (t == T_IDENTIFIER && peek().lexeme == "string") return true; 
-        return t==T_KW_VOID || t==T_KW_CHAR || t==T_KW_INT || t==T_KW_FLOAT || t==T_KW_DOUBLE || t==T_KW_BOOL || t==T_KW_AUTO;
+        if (t == T_IDENTIFIER && peek().lexeme == "string") return true;
+        return t == T_KW_VOID || t == T_KW_CHAR || t == T_KW_INT ||
+               t == T_KW_FLOAT || t == T_KW_DOUBLE || t == T_KW_BOOL;
     }
 
     FunctionDeclaration* finish_parse_function(string returnType, string name, int line) {
@@ -323,6 +324,7 @@ private:
         if (match(T_INTLIT)) return new NumberLiteral(previous().lexeme, line);
         if (match(T_FLOATLIT)) return new NumberLiteral(previous().lexeme, line);
         if (match(T_STRINGLIT)) return new StringLiteral(previous().lexeme, line);
+        if (match(T_CHARLIT)) return new CharLiteral(previous().lexeme, line);
         if (match(T_KW_TRUE)) return new BoolLiteral(true, line);
         if (match(T_KW_FALSE)) return new BoolLiteral(false, line);
         if (match(T_IDENTIFIER)) return new Identifier(previous().lexeme, line);

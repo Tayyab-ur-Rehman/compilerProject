@@ -41,8 +41,8 @@ private:
     string current_function_return_type;
     bool in_loop;
 
-    bool is_numeric(const string& type) { return type == "int" || type == "float" || type == "double"; }
-    bool is_integer(const string& type) { return type == "int"; }
+    bool is_numeric(const string& type) { return type == "int" || type == "float" || type == "double" || type == "char"; }
+    bool is_integer(const string& type) { return type == "int" || type == "char"; }
     string get_wider_type(const string& t1, const string& t2) {
         if (t1 == "double" || t2 == "double") return "double";
         if (t1 == "float" || t2 == "float") return "float";
@@ -92,8 +92,9 @@ private:
     string check(FunctionCall* node);
     string check(UnaryOp* node);
     string check(NumberLiteral* node);
-    string check(StringLiteral* node) { return "string"; }
-    string check(BoolLiteral* node) { return "bool"; }
+    string check(CharLiteral* node);
+    string check(StringLiteral* node) { node->inferred_type = "string"; return "string"; }
+    string check(BoolLiteral* node) { node->inferred_type = "bool"; return "bool"; }
 };
 
 void TypeChecker::visit(Program* node) {
@@ -103,9 +104,13 @@ void TypeChecker::visit(Program* node) {
 
 void TypeChecker::visit(FunctionDeclaration* node) {
     current_function_return_type = node->returnType;
+    node->resolved_return_type = node->returnType;
     enter_scope(node);
     visit(node->body);
     exit_scope();
+    if (Symbol* sym = find_symbol(node->name)) {
+        sym->type_name = node->resolved_return_type;
+    }
     current_function_return_type = "";
 }
 
@@ -129,11 +134,15 @@ void TypeChecker::visit(Statement* node) {
 }
 
 void TypeChecker::visit(VariableDeclarationStatement* node) {
+    node->resolved_type = node->type;
     if (node->initializer) {
         string init_type = check(node->initializer);
-        if (node->type != init_type && !(is_numeric(node->type) && is_numeric(init_type))) {
+        if (node->resolved_type != init_type && !(is_numeric(node->resolved_type) && is_numeric(init_type))) {
             throw TypeError(TypeChkError::ErroneousVarDecl, "Initializer type '" + init_type + "' does not match variable type '" + node->type + "' on line " + to_string(node->line));
         }
+    }
+    if (Symbol* sym = find_symbol(node->name)) {
+        sym->type_name = node->resolved_type;
     }
 }
 
@@ -142,7 +151,7 @@ void TypeChecker::visit(ExpressionStatement* node) { check(node->expression); }
 void TypeChecker::visit(IfStatement* node) {
     string cond_type = check(node->condition);
     if (cond_type != "bool") {
-        throw TypeError(TypeChkError::NonBooleanCondStmt, "If statement condition must be a boolean, but got '" + cond_type + "' on line " + to_string(node->line));
+        throw TypeError(TypeChkError::NonBooleanCondStmt, "If statement condition must be 'bool', but got '" + cond_type + "' on line " + to_string(node->line));
     }
     visit(node->thenBranch);
     if (node->elseBranch) visit(node->elseBranch);
@@ -151,7 +160,7 @@ void TypeChecker::visit(IfStatement* node) {
 void TypeChecker::visit(WhileStatement* node) {
     string cond_type = check(node->condition);
     if (cond_type != "bool") {
-        throw TypeError(TypeChkError::NonBooleanCondStmt, "While loop condition must be a boolean, but got '" + cond_type + "' on line " + to_string(node->line));
+        throw TypeError(TypeChkError::NonBooleanCondStmt, "While loop condition must be 'bool', but got '" + cond_type + "' on line " + to_string(node->line));
     }
     bool prev_in_loop = in_loop;
     in_loop = true;
@@ -165,7 +174,7 @@ void TypeChecker::visit(ForStatement* node) {
     if(node->condition) {
         string cond_type = check(node->condition);
         if (cond_type != "bool") {
-            throw TypeError(TypeChkError::NonBooleanCondStmt, "For loop condition must be a boolean, but got '" + cond_type + "' on line " + to_string(node->line));
+            throw TypeError(TypeChkError::NonBooleanCondStmt, "For loop condition must be 'bool', but got '" + cond_type + "' on line " + to_string(node->line));
         }
     }
     if(node->increment) check(node->increment);
@@ -203,6 +212,7 @@ string TypeChecker::check(Expression* node) {
     if (auto p = dynamic_cast<UnaryOp*>(node)) return check(p);
     if (auto p = dynamic_cast<NumberLiteral*>(node)) return check(p);
     if (auto p = dynamic_cast<StringLiteral*>(node)) return check(p);
+    if (auto p = dynamic_cast<CharLiteral*>(node)) return check(p);
     if (auto p = dynamic_cast<BoolLiteral*>(node)) return check(p);
     return "void";
 }
@@ -213,28 +223,39 @@ string TypeChecker::check(Assignment* node) {
     if (var_type != val_type && !(is_numeric(var_type) && is_numeric(val_type))) {
         throw TypeError(TypeChkError::InvalidAssignment, "Cannot assign type '" + val_type + "' to variable '" + node->identifier->name + "' of type '" + var_type + "' on line " + to_string(node->line));
     }
+    node->inferred_type = var_type;
     return var_type;
 }
 
 string TypeChecker::check(Identifier* node) {
     Symbol* sym = find_symbol(node->name);
-    return sym->type_name;
+    node->inferred_type = sym->type_name;
+    return node->inferred_type;
 }
 
 string TypeChecker::check(NumberLiteral* node) {
-    return (node->value.find('.') != string::npos) ? "double" : "int";
+    node->inferred_type = (node->value.find('.') != string::npos) ? "double" : "int";
+    return node->inferred_type;
+}
+
+string TypeChecker::check(CharLiteral* node) {
+    node->inferred_type = "char";
+    return node->inferred_type;
 }
 
 string TypeChecker::check(UnaryOp* node) {
     string right_type = check(node->right);
     if (node->op == "!") {
         if(right_type != "bool") throw TypeError(TypeChkError::ExpressionTypeMismatch, "Logical NOT '!' operator requires a boolean operand, but got '" + right_type + "' on line " + to_string(node->line));
+        node->inferred_type = "bool";
         return "bool";
     }
     if (node->op == "-") {
-         if(!is_numeric(right_type)) throw TypeError(TypeChkError::AttemptedOpOnNonNumeric, "Unary minus '-' operator requires a numeric operand, but got '" + right_type + "' on line " + to_string(node->line));
+        if(!is_numeric(right_type)) throw TypeError(TypeChkError::AttemptedOpOnNonNumeric, "Unary minus '-' operator requires a numeric operand, but got '" + right_type + "' on line " + to_string(node->line));
+        node->inferred_type = right_type;
         return right_type;
     }
+    node->inferred_type = "void";
     return "void";
 }
 
@@ -245,12 +266,14 @@ string TypeChecker::check(FunctionCall* node) {
     }
     for (size_t i = 0; i < node->arguments.size(); ++i) {
         string arg_type = check(node->arguments[i]);
-        string param_type = sym->params[i].type;
+        const Parameter& param_info = sym->params[i];
+        string param_type = !param_info.resolved_type.empty() ? param_info.resolved_type : param_info.type;
         if (arg_type != param_type && !(is_numeric(arg_type) && is_numeric(param_type))) {
              throw TypeError(TypeChkError::FnCallParamType, "Argument " + to_string(i+1) + " for function '" + node->callee + "' has wrong type. Expected '" + param_type + "', but got '" + arg_type + "' on line " + to_string(node->line));
         }
     }
-    return sym->type_name;
+    node->inferred_type = sym->type_name;
+    return node->inferred_type;
 }
 
 string TypeChecker::check(BinaryOperation* node) {
@@ -259,19 +282,24 @@ string TypeChecker::check(BinaryOperation* node) {
     const string& op = node->op;
     if (op == "+" || op == "-" || op == "*" || op == "/") {
         if (!is_numeric(left_type) || !is_numeric(right_type)) throw TypeError(TypeChkError::AttemptedOpOnNonNumeric, "Binary operator '" + op + "' requires numeric operands, but got '" + left_type + "' and '" + right_type + "' on line " + to_string(node->line));
-        return get_wider_type(left_type, right_type);
+        node->inferred_type = get_wider_type(left_type, right_type);
+        return node->inferred_type;
     }
     if (op == "%" || op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
         if (!is_integer(left_type) || !is_integer(right_type)) throw TypeError(TypeChkError::AttemptedOpOnNonInt, "Binary operator '" + op + "' requires integer operands, but got '" + left_type + "' and '" + right_type + "' on line " + to_string(node->line));
+        node->inferred_type = "int";
         return "int";
     }
     if (op == "&&" || op == "||") {
         if (left_type != "bool" || right_type != "bool") throw TypeError(TypeChkError::ExpressionTypeMismatch, "Logical operator '" + op + "' requires boolean operands, but got '" + left_type + "' and '" + right_type + "' on line " + to_string(node->line));
+        node->inferred_type = "bool";
         return "bool";
     }
     if (op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=") {
         if (left_type != right_type && !(is_numeric(left_type) && is_numeric(right_type))) throw TypeError(TypeChkError::ExpressionTypeMismatch, "Comparison operator '" + op + "' cannot compare incompatible types '" + left_type + "' and '" + right_type + "' on line " + to_string(node->line));
+        node->inferred_type = "bool";
         return "bool";
     }
+    node->inferred_type = "void";
     return "void";
 }

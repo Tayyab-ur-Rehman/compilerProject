@@ -14,8 +14,9 @@ struct Identifier;
 struct VariableDeclarationStatement;
 
 struct Expression {
-    int line; 
-    Expression(int l) : line(l) {}
+    int line;
+    string inferred_type;
+    Expression(int l) : line(l), inferred_type("") {}
     virtual ~Expression() {} 
     virtual void print(int indent = 0) const = 0;
 };
@@ -24,7 +25,9 @@ struct NumberLiteral : Expression {
     string value;
     NumberLiteral(string val, int l) : value(val), Expression(l) {}
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "NumberLiteral(" << value << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "NumberLiteral(" << value
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
     }
 };
 
@@ -32,14 +35,27 @@ struct StringLiteral : Expression {
     string value;
     StringLiteral(string val, int l) : value(val), Expression(l) {}
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "StringLiteral(\"" << value << "\") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "StringLiteral(\"" << value << "\""
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
+    }
+};
+struct CharLiteral : Expression {
+    string value;
+    CharLiteral(string val, int l) : value(val), Expression(l) {}
+    void print(int indent = 0) const override {
+        cout << string(indent, ' ') << "CharLiteral(" << value
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
     }
 };
 struct BoolLiteral : Expression {
     bool value;
     BoolLiteral(bool val, int l) : value(val), Expression(l) {}
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "BoolLiteral(" << (value ? "true" : "false") << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "BoolLiteral(" << (value ? "true" : "false")
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
     }
 };
 
@@ -47,7 +63,9 @@ struct Identifier : Expression {
     string name;
     Identifier(string n, int l) : name(n), Expression(l) {}
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "Identifier(" << name << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "Identifier(" << name
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
     }
 };
 
@@ -64,7 +82,9 @@ struct BinaryOperation : Expression {
     }
 
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "BinaryOperation(" << op << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "BinaryOperation(" << op
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
         left->print(indent + 2);
         right->print(indent + 2);
     }
@@ -80,7 +100,9 @@ struct UnaryOp : Expression {
     }
 
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "UnaryOp(" << op << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "UnaryOp(" << op
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
         right->print(indent + 2);
     }
 };
@@ -96,7 +118,9 @@ struct Assignment : Expression {
     }
 
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "Assignment(" << identifier->name << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "Assignment(" << identifier->name
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
         value->print(indent + 2);
     }
 };
@@ -112,7 +136,9 @@ struct FunctionCall : Expression {
         }
     }
      void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "FunctionCall(" << callee << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "FunctionCall(" << callee
+             << ", type: " << (inferred_type.empty() ? "<unknown>" : inferred_type)
+             << ") [line: " << line << "]" << endl;
         if (!arguments.empty()) {
             cout << string(indent + 2, ' ') << "Arguments:" << endl;
             for(const auto& arg : arguments) {
@@ -162,16 +188,21 @@ struct ExpressionStatement : Statement {
 struct VariableDeclarationStatement : Statement {
     string type;
     string name;
-    Expression* initializer; 
+    Expression* initializer;
+    string resolved_type;
     VariableDeclarationStatement(string t, string n, Expression* init, int l)
-        : type(t), name(n), initializer(init), Statement(l) {}
+        : type(t), name(n), initializer(init), resolved_type(t), Statement(l) {}
     ~VariableDeclarationStatement() {
         if (initializer) {
             delete initializer;
         }
     }
     void print(int indent = 0) const override {
-        cout << string(indent, ' ') << "VariableDeclaration(" << name << ", type: " << type << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "VariableDeclaration(" << name << ", type: " << type;
+        if (!resolved_type.empty()) {
+            cout << " -> " << resolved_type;
+        }
+        cout << ") [line: " << line << "]" << endl;
         if (initializer) {
             cout << string(indent + 2, ' ') << "Initializer:" << endl;
             initializer->print(indent + 4);
@@ -288,9 +319,14 @@ struct Parameter {
     string type;
     string name;
     int line;
-    Parameter(string t, string n, int l) : type(t), name(n), line(l) {}
+    string resolved_type;
+    Parameter(string t, string n, int l) : type(t), name(n), line(l), resolved_type(t) {}
     void print(int indent = 0) const {
-        cout << string(indent, ' ') << "Param(" << name << ", type: " << type << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "Param(" << name << ", type: " << type;
+        if (!resolved_type.empty()) {
+            cout << " -> " << resolved_type;
+        }
+        cout << ") [line: " << line << "]" << endl;
     }
 };
 
@@ -299,16 +335,20 @@ struct FunctionDeclaration {
     string name;
     vector<Parameter> params;
     BlockStatement* body;
+    string resolved_return_type;
     int line;
-
     FunctionDeclaration(string rt, string n, vector<Parameter> p, BlockStatement* b, int l)
-        : returnType(rt), name(n), params(p), body(b), line(l) {}
+        : returnType(rt), name(n), params(p), body(b), resolved_return_type(rt), line(l) {}
 
     ~FunctionDeclaration() {
         delete body;
     }
     void print(int indent = 0) const {
-        cout << string(indent, ' ') << "FunctionDeclaration(" << name << ", returns: " << returnType << ") [line: " << line << "]" << endl;
+        cout << string(indent, ' ') << "FunctionDeclaration(" << name << ", returns: " << returnType;
+        if (!resolved_return_type.empty()) {
+            cout << " -> " << resolved_return_type;
+        }
+        cout << ") [line: " << line << "]" << endl;
         if (!params.empty()) {
             cout << string(indent + 2, ' ') << "Parameters:" << endl;
             for (const auto& param : params) {

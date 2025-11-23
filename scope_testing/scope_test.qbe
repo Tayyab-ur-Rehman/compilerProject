@@ -1,0 +1,63 @@
+data $x = { w 55 }
+data $str_0 = { b "mmmmm", b 0 }
+data $str_1 = { b "A", b 0 }
+
+function  $greet(b %p0) {
+@start
+    %t0 =l alloc4
+    stob %p0, %t0
+    %t1 =l alloc4
+    %t2 =w 65
+    stob %t2, %t1
+    %t3 =w loadb %t0
+    stob %t3, %t1
+    jmp @while_cond_1
+@while_cond_1
+    %t4 =w loadb %t1
+    %t5 =w 97
+    %t6 =w ceqw %t4, %t5
+    jnz %t6, @while_body_2, @while_end_3
+@while_body_2
+    %t7 =w loadb %t1
+    %t8 =w 65
+    %t9 =w ceqw %t7, %t8
+    jnz %t9, @if_true_4, @if_end_5
+@if_true_4
+    jmp @while_end_3
+    jmp @if_end_5
+@if_end_5
+    jmp @while_cond_1
+@while_end_3
+@end_greet_0
+    ret
+}
+
+function w $main() {
+@start
+    %t0 =l alloc8
+    %t1 =l $str_0
+    stol %t1, %t0
+    %t2 =l alloc4
+    %t3 =w 99
+    stow %t3, %t2
+    %t4 =l alloc4
+    %t5 =w 10
+    stow %t5, %t2
+    %t6 =l $str_1
+    stol %t6, %t0
+    %t7 =w 10
+    stow %t7, %t2
+    %t8 =l alloc4
+    %t9 =w 6
+    %t10 =w 88
+    %t11 =w add %t9, %t10
+    %t12 =w 8
+    %t13 =w 33
+    %t14 =w mul %t12, %t13
+    %t15 =w 6
+    %t16 =w div %t14, %t15
+    %t17 =w add %t11, %t16
+    stow %t17, %t8
+@end_main_6
+}
+

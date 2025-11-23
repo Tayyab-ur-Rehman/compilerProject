@@ -2,94 +2,92 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <fstream>
 #include "tokens.h" 
 #include "ast.h"
 #include "parser.h"
-#include "lexer_regex.cpp" 
 #include "scope_analyzer.h"
-#include "typechecker.h" 
+#include "typechecker.h"
+#include "ir_gen.h"
+
+
+// g++ -std=c++17 main.cpp lexer_regex.cpp IR.cpp -o main
+// ./main scope_testing/scope_test.c
+using namespace std;
+
+// Forward declare the function from lexer_regex.cpp
+ vector<Token> tokenize(const  string& source);
+ string readFile(const  string& filename);
+
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
+         cerr << "Usage: " << argv[0] << " <source_file>" <<  endl;
         return 1;
     }
 
-    string filename = argv[1];
-    cout << "Parsing file: " << filename << endl;
-
-    Program* ast_root = NULL; 
-    Scope* global_scope = NULL; 
+     string filename = argv[1];
+    Program* ast_root = nullptr;
+    ScopeAnalyzer* scope_analyzer = nullptr;
 
     try {
-        cout << "\n1. lexical analysis" << endl;
-        string source_code = readFile(filename);
-        vector<Token> tokens = tokenize(source_code);
-        for (const auto& token : tokens) {
-            if (token.type == T_INVALID) continue; 
-            else { //print
-                cout << "   Token(" << token.lexeme << ", Type: " << tokenTypeToString(token.type) 
-                     << ", Line: " << token.line << ", Column: " << token.column << ")" << endl;
-            }
-        }
-        cout << "   Lexing complete. " << tokens.size() << " tokens found." << endl;
+        // 1. Lexical Analysis
+         cout << "1. Lexical Analysis..." <<  endl;
+         string source_code = readFile(filename);
+         vector<Token> tokens = tokenize(source_code);
+         cout << "   Lexing complete." <<  endl;
         
-        cout << "\n2 Syntactic Analysis (Parsing)" << endl;
+        // 2. Parsing
+         cout << "2. Parsing..." <<  endl;
         Parser parser(tokens);
         ast_root = parser.parse_program();
-        cout << "   Parsing complete. AST generated." << endl;
+         cout << "   Parsing complete." <<  endl;
         
-        cout << "\n3.Scope analysis" << endl;
-        ScopeAnalyzer scope_analyzer;
-        scope_analyzer.analyze(ast_root);
-        global_scope = scope_analyzer.global_scope;
-        cout << "   Scope analysis complete. No redefinition or undeclared symbol errors found." << endl;
+        // 3. Scope Analysis
+         cout << "3. Scope Analysis..." <<  endl;
+        scope_analyzer = new ScopeAnalyzer();
+        scope_analyzer->analyze(ast_root);
+         cout << "   Scope analysis complete." <<  endl;
 
-    
-        cout << "\n4. Type Checking" << endl;
-        TypeChecker type_checker(global_scope);
+        // 4. Type Checking
+         cout << "4. Type Checking..." <<  endl;
+        TypeChecker type_checker(scope_analyzer->global_scope);
         type_checker.check(ast_root);
-        cout << "   Type checking complete. No type errors found." << endl;
+         cout << "   Type checking complete." <<  endl;
 
-        cout << "\nAbstract Syntax Tree" << endl;
-        if (ast_root) {
-            ast_root->print(0);
-        }
+        // 5. IR Generation
+         cout << "5. QBE IR Generation..." <<  endl;
+        IRGenerator ir_gen;
+         string output_filename = filename.substr(0, filename.find_last_of('.')) + ".qbe";
+        ir_gen.generate(ast_root, output_filename);
+         cout << "   IR generation complete. Output written to " << output_filename <<  endl;
 
-    }
-    catch (const ParseError& e) {
-        cerr << "\nPARSE ERROR " << endl;
-        cerr << "Error: " << e.what() << endl;
-        if(global_scope) delete global_scope;
-        if(ast_root) delete ast_root;
+    } catch (const ParseError& e) {
+         cerr << "\n[ERROR] Parse Error: " << e.what() <<  endl;
+        delete ast_root;
+        delete scope_analyzer;
         return 1;
-    } 
-    catch (const ScopeError& e) {
-        cerr << "\nSCOPE ERROR " << endl;
-        cerr << "Error: " << e.what() << endl;
-        if(global_scope) delete global_scope;
-        if(ast_root) delete ast_root;
+    } catch (const ScopeError& e) {
+         cerr << "\n[ERROR] Scope Error: " << e.what() <<  endl;
+        delete ast_root;
+        delete scope_analyzer;
         return 1;
-    } 
-    catch (const TypeError& e) { 
-        cerr << "\nTYPE ERROR " << endl;
-        cerr << "Error: " << e.what() << endl;
-        if(global_scope) delete global_scope;
-        if(ast_root) delete ast_root;
+    } catch (const TypeError& e) { 
+         cerr << "\n[ERROR] Type Error: " << e.what() <<  endl;
+        delete ast_root;
+        delete scope_analyzer;
         return 1;
-    }
-    catch (const std::exception& e) {
-        cerr << "\nGENERAL ERROR" << endl;
-        cerr << "An unexpected error occurred: " << e.what() << endl;
-        if(global_scope) delete global_scope;
-        if(ast_root) delete ast_root;
+    } catch (const  exception& e) {
+         cerr << "\n[ERROR] An unexpected error occurred: " << e.what() <<  endl;
+        delete ast_root;
+        delete scope_analyzer;
         return 1;
     }
 
-    delete global_scope;
     delete ast_root;
+    delete scope_analyzer;
 
-    cout << "\nCompilation successful" << endl;
+     cout << "\nCompilation successful." <<  endl;
 
     return 0;
 }

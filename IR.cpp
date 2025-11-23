@@ -80,7 +80,7 @@ void IRGenerator::visit(FunctionDeclaration* node) {
 
     for (size_t i = 0; i < node->params.size(); ++i) {
         const auto& param = node->params[i];
-        string addr = new_temp();
+        string addr = "%addr_" + param.name;
         var_map[param.name] = addr;
         code_section << "    " << addr << " =l alloc" << get_qbe_alloc_size(param.type) << endl;
         code_section << "    sto" << get_qbe_type(param.type) << " %p" << i << ", " << addr << endl;
@@ -116,7 +116,7 @@ void IRGenerator::visit(Statement* node) {
 }
 
 void IRGenerator::visit(VariableDeclarationStatement* node) {
-    string addr = new_temp();
+    string addr = "%addr_" + node->name;
     var_map[node->name] = addr;
     code_section << "    " << addr << " =l alloc" << get_qbe_alloc_size(node->type) << endl;
     if (node->initializer) {

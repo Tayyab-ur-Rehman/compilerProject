@@ -297,23 +297,37 @@ private:
             Expression* right = parse_unary();
             return new UnaryOp(op, right, line);
         }
-        return parse_call();
+        return parse_postfix_expression();
     }
     
-    Expression* parse_call() {
+    Expression* parse_postfix_expression() {
         Expression* expr = parse_primary();
-        if (match(T_PARENL)) {
-            Identifier* id = dynamic_cast<Identifier*>(expr);
-            if(id) {
-                string callee_name = id->name;
-                int line = id->line;
-                delete id; 
-                vector<Expression*> args;
-                if (!check(T_PARENR)) {
-                    do { args.push_back(parse_expression()); } while (match(T_COMMA));
+
+        while (true) {
+            if (match(T_PARENL)) {
+                Identifier* id = dynamic_cast<Identifier*>(expr);
+                if(id) {
+                    string callee_name = id->name;
+                    int line = id->line;
+                    delete id; 
+                    vector<Expression*> args;
+                    if (!check(T_PARENR)) {
+                        do { args.push_back(parse_expression()); } while (match(T_COMMA));
+                    }
+                    consume(T_PARENR, ParseErrorType::FailedToFindToken, "Expected ')' after arguments.");
+                    expr = new FunctionCall(callee_name, args, line);
+                } else {
+                    throw ParseError(ParseErrorType::UnexpectedToken, "Function call syntax on non-identifier not fully supported");
                 }
-                consume(T_PARENR, ParseErrorType::FailedToFindToken, "Expected ')' after arguments.");
-                return new FunctionCall(callee_name, args, line);
+            } 
+            else if (match(T_OP_INC)) {
+                expr = new UnaryOp("p++", expr, previous().line);
+            }
+            else if (match(T_OP_DEC)) {
+                expr = new UnaryOp("p--", expr, previous().line);
+            } 
+            else {
+                break;
             }
         }
         return expr;

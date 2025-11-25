@@ -28,19 +28,22 @@ enum SymbolKind {
 };
 
 struct Symbol {
-    string name;
-    string type_name;
+    string name;         
+    string mangled_name; // Unique name for qbe
+    string type_name;  
     SymbolKind kind;
     int definition_line;
      
     vector<Parameter> params; 
 
     Symbol(string n, string t, SymbolKind k, int line) 
-        : name(n), type_name(t), kind(k), definition_line(line) {}
+        : name(n), type_name(t), kind(k), definition_line(line) {
+        mangled_name = n; // Default to name, updated for functions later
+    }
 };
 
 struct Scope {
-    map<string, Symbol*> symbols;
+    multimap<string, Symbol*> symbols; //had to update this to allow rediffinations for functions names
     Scope* parent;
     map<const void*, Scope*> children_scopes; 
 
@@ -65,6 +68,27 @@ public:
         visit(program_node);
     }
 
+    // to mekae unique signature for comparison
+    string get_signature(const string& name, const vector<Parameter>& params) {
+        string sig = name + "(";
+        for (size_t i = 0; i < params.size(); ++i) {
+            if (i > 0) sig += ",";
+            sig += params[i].type;
+        }
+        sig += ")";
+        return sig;
+    }
+
+    // make uniqe labe for qbe
+    string get_mangled_name(const string& name, const vector<Parameter>& params) {
+        if (name == "main") return "main";
+        string sig = name;
+        for (const auto& p : params) {
+            sig += "_" + p.type;
+        }
+        return sig;
+    }
+
 private:
     Scope* current_scope;
 
@@ -79,34 +103,46 @@ private:
     }
 
     void add_symbol(Symbol* symbol) {
-        if (current_scope->symbols.count(symbol->name)) {
-            ScopeErrorType err_type = (symbol->kind == FUNCTION) ? 
-                ScopeErrorType::FunctionRedefinition : 
-                ScopeErrorType::VariableRedefinition;
+        auto range = current_scope->symbols.equal_range(symbol->name);
+        for (auto it = range.first; it != range.second; ++it) {
+            Symbol* existing = it->second;
 
-            string message = (symbol->kind == FUNCTION ? "Function '" : "Variable '") + 
-                             symbol->name + "' redefined on line " + to_string(symbol->definition_line) +
-                             ". Previously defined on line " + to_string(current_scope->symbols[symbol->name]->definition_line) + ".";
+            if (symbol->kind == VARIABLE || existing->kind == VARIABLE) {
+                string message = "Variable '" + symbol->name + "' redefined on line " + to_string(symbol->definition_line);
+                throw ScopeError(ScopeErrorType::VariableRedefinition, message);
+            }
 
-            throw ScopeError(err_type, message);
+            if (symbol->kind == FUNCTION && existing->kind == FUNCTION) {
+                string sig_new = get_signature(symbol->name, symbol->params);
+                string sig_old = get_signature(existing->name, existing->params);
+                
+                if (sig_new == sig_old) {
+                    string message = "Function '" + sig_new + "' redefined on line " + to_string(symbol->definition_line);
+                    throw ScopeError(ScopeErrorType::FunctionRedefinition, message);
+                }
+            }
         }
-        current_scope->symbols[symbol->name] = symbol;
+        
+        current_scope->symbols.insert({symbol->name, symbol});
     }
-
-    Symbol* find_symbol(const string& name, bool is_function_call) {
+    Symbol* find_variable_symbol(const string& name) {
         Scope* scope = current_scope;
         while (scope) {
-            if (scope->symbols.count(name)) {
-                Symbol* sym = scope->symbols[name];
-                if (is_function_call && sym->kind != FUNCTION) {
-                    scope = scope->parent;
-                    continue;
-                }
-                return sym;
+            auto it = scope->symbols.find(name);
+            if (it != scope->symbols.end()) {
+                if (it->second->kind == VARIABLE) return it->second;
             }
             scope = scope->parent;
         }
         return NULL;
+    }
+    bool function_exists(const string& name) {
+        Scope* scope = current_scope;
+        while (scope) {
+            if (scope->symbols.count(name)) return true;
+            scope = scope->parent;
+        }
+        return false;
     }
     
     void visit(Program* node) {
@@ -117,6 +153,11 @@ private:
             }
             Symbol* func_sym = new Symbol(f->name, f->returnType, FUNCTION, f->line);
             func_sym->params = f->params;
+            func_sym->mangled_name = get_mangled_name(f->name, f->params);
+            if (f->name != "main") {
+                f->name = func_sym->mangled_name;
+            }
+
             add_symbol(func_sym);
         }
         for (auto g : node->globals) visit(g);
@@ -189,10 +230,15 @@ private:
         else if (auto p = dynamic_cast<Assignment*>(node)) visit(p);
         else if (auto p = dynamic_cast<Identifier*>(node)) visit(p);
         else if (auto p = dynamic_cast<FunctionCall*>(node)) visit(p);
+        else if (auto p = dynamic_cast<UnaryOp*>(node)) visit(p);
     }
 
     void visit(BinaryOperation* node) {
         visit(node->left);
+        visit(node->right);
+    }
+    
+    void visit(UnaryOp* node) {
         visit(node->right);
     }
     
@@ -203,7 +249,7 @@ private:
     }
 
     void visit(Identifier* node) {
-        Symbol* sym = find_symbol(node->name, false);
+        Symbol* sym = find_variable_symbol(node->name);
         if (!sym) {
             string message = "Undeclared variable '" + node->name + "' used on line " + to_string(node->line) + ".";
             throw ScopeError(ScopeErrorType::UndeclaredVariableAccessed, message);
@@ -212,12 +258,10 @@ private:
     }
 
     void visit(FunctionCall* node) {
-        Symbol* sym = find_symbol(node->callee, true);
-        if (!sym) {
+        if (!function_exists(node->callee)) {
             string message = "Call to undefined function '" + node->callee + "' on line " + to_string(node->line) + ".";
             throw ScopeError(ScopeErrorType::UndefinedFunctionCalled, message);
         }
-        node->inferred_type = sym->type_name;
         for(auto& arg : node->arguments) visit(arg);
     }
 };

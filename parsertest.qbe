@@ -1,0 +1,215 @@
+data $global_counter = { w 0 }
+data $result_accumulator = { w 0 }
+
+export function w $factorial_int(w %p0) {
+@start
+    %addr_n =l alloc4 4
+    storew %p0, %addr_n
+    %t0 =w loadw %addr_n
+    %t1 =w copy 2
+    %t2 =w csltw %t0, %t1
+    jnz %t2, @if_true_1, @if_false_3
+@if_true_1
+    %t3 =w copy 1
+    ret %t3
+@unreachable_4
+    jmp @if_end_2
+@if_false_3
+    %t4 =w loadw %addr_n
+    %t5 =w loadw %addr_n
+    %t6 =w copy 1
+    %t7 =w sub %t5, %t6
+    %t8 =w call $factorial_int(w %t7)
+    %t9 =w mul %t4, %t8
+    ret %t9
+@unreachable_5
+@if_end_2
+@end_factorial_int_0
+    ret 0
+}
+
+export function w $is_even_int(w %p0) {
+@start
+    %addr_num =l alloc4 4
+    storew %p0, %addr_num
+    %t0 =w loadw %addr_num
+    %t1 =w copy 2
+    %t2 =w rem %t0, %t1
+    %t3 =w copy 0
+    %t4 =w ceqw %t2, %t3
+    jnz %t4, @if_true_7, @if_false_9
+@if_true_7
+    %t5 =w copy 1
+    ret %t5
+@unreachable_10
+    jmp @if_end_8
+@if_false_9
+    %t6 =w copy 0
+    ret %t6
+@unreachable_11
+@if_end_8
+@end_is_even_int_6
+    ret 0
+}
+
+export function w $loop_logic_test_int(w %p0) {
+@start
+    %addr_limit =l alloc4 4
+    storew %p0, %addr_limit
+    %addr_sum =l alloc4 4
+    %t0 =w copy 0
+    storew %t0, %addr_sum
+    %addr_i =l alloc4 4
+    %t1 =w copy 0
+    storew %t1, %addr_i
+    jmp @for_cond_13
+@for_cond_13
+    %t2 =w loadw %addr_i
+    %t3 =w loadw %addr_limit
+    %t4 =w csltw %t2, %t3
+    jnz %t4, @for_body_14, @for_end_16
+@for_body_14
+    %t5 =w loadw %addr_i
+    %t6 =w copy 2
+    %t7 =w ceqw %t5, %t6
+    jnz %t7, @if_true_17, @if_end_18
+@if_true_17
+    jmp @for_inc_15
+@unreachable_19
+    jmp @if_end_18
+@if_end_18
+    %t8 =w loadw %addr_sum
+    %t9 =w loadw %addr_i
+    %t10 =w add %t8, %t9
+    storew %t10, %addr_sum
+    %t11 =w loadw %addr_sum
+    %t12 =w copy 20
+    %t13 =w csgtw %t11, %t12
+    jnz %t13, @if_true_20, @if_end_21
+@if_true_20
+    jmp @for_end_16
+@unreachable_22
+    jmp @if_end_21
+@if_end_21
+    jmp @for_inc_15
+@for_inc_15
+    %t14 =w loadw %addr_i
+    %t15 =w copy 1
+    %t16 =w add %t14, %t15
+    storew %t16, %addr_i
+    jmp @for_cond_13
+@for_end_16
+    %t17 =w loadw %addr_sum
+    ret %t17
+@unreachable_23
+@end_loop_logic_test_int_12
+    ret 0
+}
+
+export function w $math_test() {
+@start
+    %addr_a =l alloc4 4
+    %t0 =w copy 10
+    storew %t0, %addr_a
+    %addr_b =l alloc4 4
+    %t1 =w copy 5
+    storew %t1, %addr_b
+    %addr_c =l alloc4 4
+    %t2 =w copy 2
+    storew %t2, %addr_c
+    %addr_res =l alloc4 4
+    %t3 =w loadw %addr_a
+    %t4 =w loadw %addr_b
+    %t5 =w loadw %addr_c
+    %t6 =w mul %t4, %t5
+    %t7 =w add %t3, %t6
+    storew %t7, %addr_res
+    %t8 =w loadw %addr_res
+    ret %t8
+@unreachable_25
+@end_math_test_24
+    ret 0
+}
+
+export function w $math_test_int(w %p0) {
+@start
+    %addr_a =l alloc4 4
+    storew %p0, %addr_a
+    %t0 =w loadw %addr_a
+    %t1 =w copy 2
+    %t2 =w mul %t0, %t1
+    ret %t2
+@unreachable_27
+@end_math_test_int_26
+    ret 0
+}
+
+export function w $math_test_float(d %p0) {
+@start
+    %addr_b =l alloc8 8
+    stored %p0, %addr_b
+    %t0 =d loadd %addr_b
+    %t1 =d loadd %addr_b
+    %t2 =d mul %t0, %t1
+    %t3 =w dtosi %t2
+    ret %t3
+@unreachable_29
+@end_math_test_float_28
+    ret 0
+}
+
+export function w $main() {
+@start
+    %t0 =w copy 5
+    %t1 =l copy $global_counter
+    storew %t0, %t1
+    %addr_fact_res =l alloc4 4
+    %t3 =l copy $global_counter
+    %t2 =w loadw %t3
+    %t4 =w call $factorial_int(w %t2)
+    storew %t4, %addr_fact_res
+    %addr_check =l alloc4 4
+    %t5 =w loadw %addr_fact_res
+    %t6 =w call $is_even_int(w %t5)
+    storew %t6, %addr_check
+    %t7 =w loadw %addr_check
+    jnz %t7, @if_true_31, @if_false_33
+@if_true_31
+    %t8 =w copy 1
+    %t9 =l copy $result_accumulator
+    storew %t8, %t9
+    jmp @if_end_32
+@if_false_33
+    %t10 =w copy 0
+    %t11 =l copy $result_accumulator
+    storew %t10, %t11
+@if_end_32
+    %addr_loop_res =l alloc4 4
+    %t12 =w copy 10
+    %t13 =w call $loop_logic_test_int(w %t12)
+    storew %t13, %addr_loop_res
+    %addr_a =l alloc4 4
+    %t14 =d copy d_10.0
+    %t15 =w dtosi %t14
+    %t16 =w call $math_test_int(w %t15)
+    storew %t16, %addr_a
+    %addr_math_res =l alloc4 4
+    %t17 =w call $math_test()
+    storew %t17, %addr_math_res
+    %addr_final_result =l alloc4 4
+    %t18 =w loadw %addr_fact_res
+    %t20 =l copy $result_accumulator
+    %t19 =w loadw %t20
+    %t21 =w add %t18, %t19
+    %t22 =w loadw %addr_loop_res
+    %t23 =w add %t21, %t22
+    %t24 =w loadw %addr_math_res
+    %t25 =w add %t23, %t24
+    storew %t25, %addr_final_result
+    %t26 =w loadw %addr_final_result
+    ret %t26
+@unreachable_34
+@end_main_30
+    ret 0
+}
+
